@@ -1,0 +1,50 @@
+services:
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: log-monitor-db
+  #   environment:
+  #     POSTGRES_DB: log_monitor_db
+  #     POSTGRES_USER: admin
+  #     POSTGRES_PASSWORD: password123
+  #   ports:
+  #     - "5432:5432"
+
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: log-monitor-redis
+  #   ports:
+  #     - "6379:6379"
+
+  # Sử dụng KRaft mode (không cần Zookeeper cho gọn)
+  kafka:
+    image: bitnami/kafka:3.5
+    container_name: log-monitor-kafka
+    environment:
+      - KAFKA_CFG_NODE_ID=0
+      - KAFKA_CFG_PROCESS_ROLES=controller,broker
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+    ports:
+      - "9092:9092"
+
+  # elasticsearch:
+  #   image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+  #   container_name: log-monitor-es
+  #   environment:
+  #     - discovery.type=single-node
+  #     - xpack.security.enabled=false # Tắt để dev cho nhanh, bật lại khi lên prod
+  #     - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+  #   ports:
+  #     - "9200:9200"
+
+  # kibana:
+  #   image: docker.elastic.co/kibana/kibana:8.10.2
+  #   container_name: log-monitor-kibana
+  #   environment:
+  #     - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+  #   ports:
+  #     - "5601:5601"
+  #   depends_on:
+  #     - elasticsearch

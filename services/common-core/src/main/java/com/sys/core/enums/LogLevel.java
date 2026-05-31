@@ -14,7 +14,7 @@ public enum LogLevel {
     INFO(2),
     WARN(3),
     ERROR(4),
-    FATAL(5);
+    FATAL(5); // test
 
     private final int level;
 }
