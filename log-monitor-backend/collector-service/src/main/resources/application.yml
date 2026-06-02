@@ -1,0 +1,55 @@
+server:
+  #  port: 8080
+  # Tối ưu hóa Tomcat để nhận lượng lớn request
+  tomcat:
+    connection-timeout: 20000
+    max-connections: 10000
+    accept-count: 1000
+
+spring:
+  application:
+    name: collector-service
+
+  threads:
+    virtual:
+      enabled: true
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      # Chuyển đổi Object thành JSON String một cách tự động
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+      # acks= 0 Chỉ cần gửi log đi là xong, không cần đợi xác nhận từ Kafka
+      # acks = 1: Chỉ cần Leader xác nhận là đủ nhanh, không cần đợi các Follower
+      # acks = -1 hoặc all: Đảm bảo log đã được ghi vào tất cả các replica, nhưng sẽ chậm hơn
+      acks: -1
+      retries: 3
+      # Bắt buộc phải nén log (text) trước khi gửi qua mạng để tiết kiệm 70% băng thông
+      compression-type: snappy
+
+      properties:
+        # Cực kỳ quan trọng: Ép Kafka chờ 20ms để gom đủ một mẻ lớn trước khi gửi
+        linger.ms: 20
+        # Kích thước mẻ log tối đa (64KB - khoảng vài ngàn dòng log)
+        batch.size: 65536
+        # Kích thước tối đa của một Request bắn vào Kafka (10MB)
+        max.request.size: 10485760
+        retry.backoff.ms: 500
+        # Cấu hình Spring Kafka để thêm Type info vào Header (hỗ trợ Deserialize sau này)
+        spring.json.add.type.headers: false
+
+logging:
+  file:
+    name: ./logs/collector-service.log
+
+# Cấu hình tùy chỉnh cho ứng dụng của chúng ta
+app:
+  security:
+    # Token đơn giản để các Agent (Filebeat/Fluentd) xác thực khi gọi API
+    ingestion-token: "system-architect-secret-token-2026"
+  kafka:
+    # Định nghĩa sẵn tên topic để tránh gõ sai (hardcode) trong Controller
+    topics:
+      raw-logs: "raw-logs"

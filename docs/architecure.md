@@ -2,165 +2,88 @@
 flowchart TD
 
     %% =========================
-    %% LOG PRODUCERS
+    %% LOG PRODUCERS & AGENTS (MULTI-ENV)
     %% =========================
-    subgraph SOURCES["📦 Log Sources / Producer Services"]
-        A1[Auth Service]
-        A2[Chat Service]
-        A3[Payment Service] 
-        A4[Notification Service]
-        AN[Other Services...]
-    end
+    subgraph SOURCES["📦 Multi-Environment Nodes (Log Sources & Filebeat)"]
+        direction TB
+        
+        subgraph ENV_DEV["Môi trường DEV (Ví dụ)"]
+            A1[Auth Service\n- Async Logging] -->|local .log| FB1[Filebeat Agent\n- Tags: env=dev]
+            A2[Chat Service] -->|local .log| FB1
+        end
 
- 
-    %% =========================
-    %% INGESTION LAYER
-    %% =========================
-    subgraph INGEST["🚀 Ingestion Layer (Spring Boot)"]
-        API[Log Ingestion Service\nSpring Boot REST API\n- Validation\n- Authentication\n- Rate Limiting\n- Batch Receive]
-    end
-
-
-    %% =========================
-    %% MESSAGE BROKER
-    %% =========================
-    subgraph MQ["📨 Message Broker Layer"]
-        KAFKA1[(Kafka Topic\nraw-logs)]
-        KAFKA2[(Kafka Topic\ncritical-alerts)]
+        subgraph ENV_STAGING["Môi trường STAGING (Ví dụ)"]
+            B1[Auth Service] -->|local .log| FB2[Filebeat Agent\n- Tags: env=staging]
+            B2[Chat Service] -->|local .log| FB2
+        end
+        
+        subgraph ENV_TEST["Môi trường TEST (Ví dụ)"]
+            C1[Auth Service] -->|local .log| FB3[Filebeat Agent\n- Tags: env=test]
+        end
     end
 
     %% =========================
-    %% PROCESSING LAYER
+    %% PROCESSING LAYER (LOGSTASH)
     %% =========================
     subgraph PROCESS["⚙️ Processing Layer"]
-        LS1[Logstash Instance 1\n- Grok Parsing\n- Normalize Fields\n- Extract Metadata]
-        LS2[Logstash Instance 2]
-        LS3[Logstash Instance N]
+        LS[Logstash Instance\n1. Nhận log từ các Filebeat\n2. Phân tách Grok/JSON\n3. Lọc riêng log ERROR]
     end
-
 
     %% =========================
     %% STORAGE LAYER
     %% =========================
     subgraph STORAGE["🗄️ Storage Layer"]
-        ES[(Elasticsearch Cluster\nCentralized Log Storage\nFull-text Search)]
+        ES[(Elasticsearch Cluster\nCentralized Storage\nLưu kèm field 'environment')]
     end
 
-
     %% =========================
-    %% CACHE LAYER
-    %% =========================
-    subgraph CACHE["⚡ Cache Layer"]
-        REDIS[(Redis\nAlert Deduplication\nTTL Lock)]
-    end
-
-
-    %% =========================
-    %% ALERT / QUERY SERVICE
+    %% BACKEND SERVICES (SPRING BOOT)
     %% =========================
     subgraph BACKEND["🧠 Backend Services (Spring Boot)"]
-
-        QUERY[Query API Service\n- Search Logs\n- Filter Logs\n- Aggregation APIs\n- Metrics APIs]
-
-        ALERT[Alert Service\n- Detect ERROR/CRITICAL\n- Consume alert events\n- Deduplicate alerts]
-
-        WS[WebSocket Gateway\nRealtime Push Server]
-
+        QUERY[Query API Service\n- API Tìm kiếm log\n- Lọc theo env/app/level]
+        
+        ALERT[Alert Service\n- Nhận webhook lỗi từ LS\n- Đột biến log ERROR -> Cảnh báo]
+        
+        WS[WebSocket Gateway\n- Push log realtime ra màn hình]
     end
 
-
     %% =========================
-    %% EXTERNAL NOTIFICATION
+    %% FRONTEND & NOTIFICATION
     %% =========================
-    subgraph EXTERNAL["📢 External Notification"]
-        TG[Telegram Bot]
-        EMAIL[Email Notification]
+    subgraph FRONTEND_LAYER["🖥️ UI & Notification Layer"]
+        REACT[Custom Dashboard\nReact/Vue\n- Cho Dev/Tester check nhanh\n- Chọn Môi trường để xem]
+        TG[Telegram Bot / Email\n- Bắn lỗi ngầm ngay lập tức]
     end
 
-
     %% =========================
-    %% FRONTEND
-    %% =========================
-    subgraph FRONTEND["🖥️ Frontend Layer"]
-
-        REACT[Custom Dashboard\nReact/Vue\n- Search Logs\n- Analytics\n- Error Charts\n- Live Monitoring]
-
-        LIVE[Live Log Stream]
-
-        KIBANA[Kibana\nAdvanced Elasticsearch Visualization]
-
-    end
-
-
-    %% =========================
-    %% MAINTENANCE
-    %% =========================
-    subgraph MAINTENANCE["🧹 Maintenance Layer"]
-
-        ILM[Elasticsearch ILM\nIndex Lifecycle Management\n- Hot/Warm/Delete Policy]
-
-    end
-
-
-
-    %% =========================
-    %% FLOW
+    %% FLOW DIRECTION
     %% =========================
 
-    A1 --> API
-    A2 --> API
-    A3 --> API
-    A4 --> API
-    AN --> API
+    %% Filebeat các môi trường đẩy thẳng về cổng TCP của Logstash công ty
+    FB1 -->|TCP / SSL| LS
+    FB2 -->|TCP / SSL| LS
+    FB3 -->|TCP / SSL| LS
 
-    API --> KAFKA1
+    %% Logstash rẽ nhánh dữ liệu
+    LS -->|1. Lưu mọi log| ES
+    LS -- "2. Nếu gặp ERROR (HTTP POST)" --> ALERT
 
-    KAFKA1 --> LS1
-    KAFKA1 --> LS2
-    KAFKA1 --> LS3
-
-    LS1 --> ES
-    LS2 --> ES
-    LS3 --> ES
-
-    LS1 -- "ERROR / CRITICAL" --> KAFKA2
-    LS2 -- "ERROR / CRITICAL" --> KAFKA2
-
-    KAFKA2 --> ALERT
-
-    ALERT --> REDIS
-    REDIS --> ALERT
-
-    ALERT --> TG
-    ALERT --> EMAIL
-    ALERT --> WS
-
-    WS --> REACT
-    WS --> LIVE
-
+    %% Luồng Query & Hiển thị
     QUERY --> ES
-
     REACT --> QUERY
-    LIVE --> QUERY
-
-    ES --> KIBANA
-
-    ILM --> ES
-
-
+    
+    %% Luồng Cảnh báo
+    ALERT --> TG
+    ALERT --> WS
+    WS --> REACT
 
     %% =========================
-    %% COLORS
+    %% STYLE COLORS
     %% =========================
-
     style SOURCES fill:#1e3a5f,color:#fff,stroke:#4a90d9
-    style INGEST fill:#1a4a2e,color:#fff,stroke:#27ae60
-    style MQ fill:#4a3a1e,color:#fff,stroke:#f39c12
     style PROCESS fill:#5a3a00,color:#fff,stroke:#ff9f00
     style STORAGE fill:#4a2d1e,color:#fff,stroke:#d9844a
-    style CACHE fill:#4a1e1e,color:#fff,stroke:#e74c3c
     style BACKEND fill:#3a1e4a,color:#fff,stroke:#9b59b6
-    style FRONTEND fill:#1e3a4a,color:#fff,stroke:#3498db
-    style EXTERNAL fill:#4a1e3a,color:#fff,stroke:#e84393
-    style MAINTENANCE fill:#2e2e2e,color:#fff,stroke:#95a5a6 
+    style FRONTEND_LAYER fill:#1e3a4a,color:#fff,stroke:#3498db
+
 ```

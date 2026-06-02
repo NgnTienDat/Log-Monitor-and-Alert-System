@@ -1,0 +1,47 @@
+networks:
+  log-monitor-network:
+    driver: bridge
+
+services:
+  # 1. Trung tâm lưu trữ dữ liệu log
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+    container_name: log-monitor-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false # Tắt security để dev/test local cho nhẹ
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+    networks:
+      - log-monitor-network
+
+  # 2. Bộ não xử lý và điều phối log (ETL)
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.10.2
+    container_name: log-monitor-logstash
+    volumes:
+      - ./logstash/pipeline/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    ports:
+      - "5044:5044" # Cổng nhận log từ các Filebeat Agent gửi về
+    environment:
+      - LS_JAVA_OPTS=-Xms256m -Xmx256m
+    depends_on:
+      - elasticsearch
+    networks:
+      - log-monitor-network
+
+  # 3. Agent thu thập log (Giả lập môi trường DEV)
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.10.2
+    container_name: log-monitor-filebeat
+    user: root # Quyền root để đọc được file log hệ thống
+    volumes:
+      # Mount file cấu hình filebeat
+      - ./filebeat/config/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      # Mount thư mục chứa file log giả lập từ máy vào container để Filebeat "ngửi" log
+      - ./mock-logs:/var/log/apps:ro
+    depends_on:
+      - logstash
+    networks:
+      - log-monitor-network

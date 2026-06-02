@@ -1,0 +1,15 @@
+filebeat.inputs:
+  - type: log
+    enabled: true
+    # Đường dẫn file log bên trong container Filebeat
+    paths:
+      - /var/log/apps/*.log
+    
+    # Định nghĩa nhãn môi trường cho các log thu thập từ node này
+    fields:
+      env: dev
+    fields_under_root: true
+
+# Đích đến: Đẩy thẳng về cổng của Logstash
+output.logstash:
+  hosts: ["logstash:5044"]
