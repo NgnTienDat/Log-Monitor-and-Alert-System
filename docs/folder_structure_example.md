@@ -219,6 +219,25 @@ docker-compose -f infrastructure/docker-compose.yml up -d
 ./scripts/load-test/fire-500-logs.sh
 ```
 
+```
+📂 my-lab-project/
+├── 📂 logs-app/          (Ứng dụng chạy chính, tự sinh log)
+│   ├── 📂infras/
+│   │   └──📂filebeat/
+│   │       └── filebeat.yml            (Cấu hình Filebeat)
+│   └── 📂 logs/
+│   │   └── logs-app.log     (File log sẽ được sinh ra ở đây)
+│   └── docker-compose.yml
+│
+└── 📂 log-monitor-backend/              (Hệ thống giám sát log của bạn)
+    ├── docker-compose.yml   (Quản lý Logstash container)
+    📂 logstash/
+        └── logstash.conf        (Cấu hình Logstash)
+
+```
+
+
+
 ---
 
 ## Tóm tắt quyết định kiến trúc

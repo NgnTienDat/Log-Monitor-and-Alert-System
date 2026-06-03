@@ -6,7 +6,7 @@ flowchart TD
     %% =========================
     subgraph SOURCES["📦 Multi-Environment Nodes (Log Sources & Filebeat)"]
         direction TB
-        
+         
         subgraph ENV_DEV["Môi trường DEV (Ví dụ)"]
             A1[Auth Service\n- Async Logging] -->|local .log| FB1[Filebeat Agent\n- Tags: env=dev]
             A2[Chat Service] -->|local .log| FB1
